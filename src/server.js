@@ -1,0 +1,153 @@
+/**
+ * The core server that runs on a Cloudflare worker.
+ */
+
+import { AutoRouter } from 'itty-router';
+import {
+  InteractionResponseType,
+  InteractionType,
+  verifyKey,
+} from 'discord-interactions';
+import { COMMANDS } from './commands.js';
+import { InteractionResponseFlags } from 'discord-interactions';
+
+class JsonResponse extends Response {
+  constructor(body, init) {
+    const jsonBody = JSON.stringify(body);
+    init = init || {
+      headers: {
+        'content-type': 'application/json;charset=UTF-8'
+      },
+    };
+    super(jsonBody, init);
+  }
+}
+
+function varDebug(obj){console.log(JSON.stringify(obj,undefined,2))}
+
+const router = AutoRouter();
+
+/**
+ * A simple :wave: hello page to verify the worker is working.
+ */
+router.get('/', (request, env) => {
+  return Response.redirect(`https://discord.com/developers/applications/${env.DISCORD_APPLICATION_ID}/information`,301);
+});
+
+/**
+ * Main route for all requests sent from Discord.  All incoming messages will
+ * include a JSON payload described here:
+ * https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object
+ */
+router.post('/', async (request, env, ctx) => {
+  const { isValid, interaction } = await server.verifyDiscordRequest(
+    request,
+    env,
+  );
+  if (!isValid || !interaction) {
+    return new Response('Bad request signature.', { status: 401 });
+  }
+
+  if (interaction.type === InteractionType.PING) {
+    // The `PING` message is used during the initial webhook handshake, and is
+    // required to configure the webhook in the developer portal.
+    return new JsonResponse({
+      type: InteractionResponseType.PONG,
+    });
+  }
+  if (interaction.type === InteractionType.APPLICATION_COMMAND) {
+    // Most user commands will come as `APPLICATION_COMMAND`.
+    var args = {};
+    if (interaction.data.options) {
+      interaction.data.options.forEach((i, index, array) => {
+        Object.defineProperty(args, i.name, {
+          value: i.value,
+          writable: false,
+        });
+      })
+    }
+    // console.log(JSON.stringify(interaction, undefined, 2))
+    
+      // console.log(JSON.stringify(interaction, undefined, 2))
+    switch (interaction.data.name.toLowerCase()) {
+      case 'timecode': {
+        // The `timecode` command is used to convert a time or seconds into a Discord
+        // timecode format.
+        if (!args.time) {
+          return new JsonResponse({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: '請提供要轉換的時間或秒數。',
+              flags: InteractionResponseFlags.EPHEMERAL,
+            },
+          });
+        } 
+        const time = new Date(args.time);
+        if (isNaN(time.getTime())) {
+          // If the time is not a valid date, assume it's a number of seconds.
+          const seconds = parseFloat(args.time);
+          if (isNaN(seconds)) {
+            return new JsonResponse({
+              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+              data: {
+                content: '請提供有效的時間或秒數。',
+                flags: InteractionResponseFlags.EPHEMERAL,
+              },
+            });
+          }
+          // Convert seconds to Discord timecode format.
+          return new JsonResponse({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `<t:${Math.floor(Date.now() / 1000) + seconds}:R>`,
+            },
+          });
+        }
+        // Convert date to Discord timecode format.
+        return new JsonResponse({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: `<t:${Math.floor(time.getTime() / 1000)}:F>`,
+          },
+        });
+      }
+      default:
+        return new JsonResponse({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: '# 糟糕！出了一點問題！\n如果你看到這則訊息，表示你想使用的指令在正式發佈的版本上可能**尚未完全啟用或完全移除**。\n請**不要**再次嘗試使用這個指令，並靜待後續的更新。',
+            flags: InteractionResponseFlags.EPHEMERAL,
+          },
+        });
+    }
+  } else if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+    
+  }
+
+  console.error('Unknown Type');
+  console.log(JSON.stringify(interaction, undefined, 2))
+  return new JsonResponse({ error: 'Unknown Type' }, { status: 400 });
+});
+router.all('*', () => new Response('Not Found.', { status: 404 }));
+
+async function verifyDiscordRequest(request, env) {
+  const signature = request.headers.get('x-signature-ed25519');
+  const timestamp = request.headers.get('x-signature-timestamp');
+  const body = await request.text();
+  const isValidRequest =
+    signature &&
+    timestamp &&
+    (await verifyKey(body, signature, timestamp, env.DISCORD_PUBLIC_KEY));
+  if (!isValidRequest) {
+    return { isValid: false };
+  }
+
+  return { interaction: JSON.parse(body), isValid: true };
+}
+
+const server = {
+  verifyDiscordRequest,
+  fetch: router.fetch,
+};
+
+export default server;

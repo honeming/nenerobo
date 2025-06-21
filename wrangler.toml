@@ -1,0 +1,19 @@
+name = "nenerobo"
+main = "./src/server.js"
+compatibility_date="2023-05-18"
+minify = true
+kv_namespaces = [
+]
+
+# [secrets]
+# DISCORD_API_TOKEN
+# DISCORD_APPLICATION_ID
+# DISCORD_PUBLIC_KEY
+# DISCORD_AI_FORUM_CHANNEL
+# CLOUDFLARE_ACCOUNT
+# CLOUDFLARE_TOKEN
+# GOOGLE_TOKEN
+# VERSION
+
+[ai]
+binding = "AI"
