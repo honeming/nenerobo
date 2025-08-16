@@ -9,19 +9,10 @@ import {
   verifyKey,
 } from 'discord-interactions';
 import { COMMANDS } from './commands.js';
+import { timecode } from './discordtools.js';
+import { JsonResponse } from './general.js';
+import { generateText } from './aiservice/aiservice.js';
 import { InteractionResponseFlags } from 'discord-interactions';
-
-class JsonResponse extends Response {
-  constructor(body, init) {
-    const jsonBody = JSON.stringify(body);
-    init = init || {
-      headers: {
-        'content-type': 'application/json;charset=UTF-8'
-      },
-    };
-    super(jsonBody, init);
-  }
-}
 
 function varDebug(obj){console.log(JSON.stringify(obj,undefined,2))}
 
@@ -56,7 +47,6 @@ router.post('/', async (request, env, ctx) => {
     });
   }
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-    // Most user commands will come as `APPLICATION_COMMAND`.
     var args = {};
     if (interaction.data.options) {
       interaction.data.options.forEach((i, index, array) => {
@@ -66,50 +56,16 @@ router.post('/', async (request, env, ctx) => {
         });
       })
     }
-    // console.log(JSON.stringify(interaction, undefined, 2))
-    
-      // console.log(JSON.stringify(interaction, undefined, 2))
     switch (interaction.data.name.toLowerCase()) {
       case 'timecode': {
         // The `timecode` command is used to convert a time or seconds into a Discord
         // timecode format.
-        if (!args.time) {
-          return new JsonResponse({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: '請提供要轉換的時間或秒數。',
-              flags: InteractionResponseFlags.EPHEMERAL,
-            },
-          });
-        } 
-        const time = new Date(args.time);
-        if (isNaN(time.getTime())) {
-          // If the time is not a valid date, assume it's a number of seconds.
-          const seconds = parseFloat(args.time);
-          if (isNaN(seconds)) {
-            return new JsonResponse({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: '請提供有效的時間或秒數。',
-                flags: InteractionResponseFlags.EPHEMERAL,
-              },
-            });
-          }
-          // Convert seconds to Discord timecode format.
-          return new JsonResponse({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `<t:${Math.floor(Date.now() / 1000) + seconds}:R>`,
-            },
-          });
-        }
-        // Convert date to Discord timecode format.
-        return new JsonResponse({
-          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: `<t:${Math.floor(time.getTime() / 1000)}:F>`,
-          },
-        });
+        return timecode(args);
+      }
+      case 'generate-text': {
+        // The `generate-text` command is used to generate text based on a prompt.
+        // It can use different AI services and models.
+        return await generateText(args, env);
       }
       default:
         return new JsonResponse({

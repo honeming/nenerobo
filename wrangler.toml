@@ -13,7 +13,3 @@ kv_namespaces = [
 # CLOUDFLARE_ACCOUNT
 # CLOUDFLARE_TOKEN
 # GOOGLE_TOKEN
-# VERSION
-
-[ai]
-binding = "AI"
