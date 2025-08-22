@@ -1,4 +1,4 @@
-export async function generateText(key,prompt, model){
+export async function generateText(key, prompt, model, onResponse, onUsage){
   const messages = [
     {
       role: 'user',
@@ -8,7 +8,7 @@ export async function generateText(key,prompt, model){
   // console.log('生成文本的參數:', { prompt, model, messages });
   let stream;
   try {
-    stream = await fetch("https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/@cf/meta/llama-3.1-8b-instruct",{
+    stream = await fetch("https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/"+model, {
       headers: {
         "Authorization": `Bearer ${key}`,
         "content-type": "application/json"
@@ -16,12 +16,49 @@ export async function generateText(key,prompt, model){
       method: "POST",
       body: JSON.stringify({
         "prompt": prompt,
-        "stream": true
+        "stream": true,
+        "max_tokens": 4096,
+        // "reasoning": "high"
       })
     });
   } catch (err) {
     console.error('AI.run 發生錯誤:', err);
     throw err;
+  }
+  if (!stream.ok) {
+    const errorBody = await stream.json();
+    if (errorBody?.errors?.[0]?.code==5021) {
+      // 從錯誤訊息擷取數字，並根據超出量調整 max_tokens
+      const errMsg = errorBody?.errors?.[0]?.message || errorBody?.errors?.[0]?.messages || JSON.stringify(errorBody);
+      const parenNums = [...errMsg.matchAll(/\((\d+)\)/g)].map(m => Number(m[1]));
+      const origMax = 4096;
+      let adjustedMax = null;
+
+      if (parenNums.length >= 2) {
+        const sumTokens = parenNums[0];    // 例: 4104 (estimated input + requested max)
+        const modelLimit = parenNums[1];   // 例: 4096 (model context limit)
+        const overage = Math.max(0, sumTokens - modelLimit);
+        adjustedMax = Math.max(1, origMax - overage); // 至少保留 1 token
+      } else {
+        // 解析失敗時，退而求其次，稍微減少原始 max（例如減 32）
+        adjustedMax = Math.max(1, origMax - 32);
+        console.warn('無法從錯誤訊息解析 token 數，使用 fallback max_tokens:', adjustedMax, '訊息:', errMsg);
+      }
+
+      // 重新發出請求，使用計算出的 adjustedMax
+      stream = await fetch("https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/"+model, {
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "content-type": "application/json"
+        },
+        method: "POST",
+        body: JSON.stringify({
+          "prompt": prompt,
+          "stream": true,
+          "max_tokens": adjustedMax
+        })
+      });
+    }
   }
   const transformContent = {};
   if (!stream.body || !stream.body.getReader) {
@@ -56,6 +93,14 @@ export async function generateText(key,prompt, model){
           const text = chunk?.response;
             if (typeof text === 'string') {
             transformContent.text += text;
+            // 立即回調新的文字內容
+            if (onResponse) {
+              try {
+                await onResponse(text);
+              } catch (callbackErr) {
+                console.error('onResponse 回調函數發生錯誤:', callbackErr);
+              }
+            }
             } else {
             // 嘗試從 chunk 中找出 usage 資訊
             const tryAssignUsage = (obj) => {
@@ -74,13 +119,37 @@ export async function generateText(key,prompt, model){
 
             if (chunk?.usage && typeof chunk.usage === 'object') {
               transformContent.usage = tryAssignUsage(chunk.usage) || chunk.usage;
+              // 立即回調 usage 資訊
+              if (onUsage && transformContent.usage) {
+                try {
+                  await onUsage(transformContent.usage);
+                } catch (callbackErr) {
+                  console.error('onUsage 回調函數發生錯誤:', callbackErr);
+                }
+              }
             } else if (chunk?.response && typeof chunk.response === 'object') {
               // 有時 response 會是一個物件，裡面包含 usage
               transformContent.usage = tryAssignUsage(chunk.response) || null;
+              if (onUsage && transformContent.usage) {
+                try {
+                  await onUsage(transformContent.usage);
+                } catch (callbackErr) {
+                  console.error('onUsage 回調函數發生錯誤:', callbackErr);
+                }
+              }
             } else {
               // 最後嘗試在整個 chunk 裡遞迴尋找 usage-like 物件
               const found = tryAssignUsage(chunk);
-              if (found) transformContent.usage = found;
+              if (found) {
+                transformContent.usage = found;
+                if (onUsage) {
+                  try {
+                    await onUsage(found);
+                  } catch (callbackErr) {
+                    console.error('onUsage 回調函數發生錯誤:', callbackErr);
+                  }
+                }
+              }
               else console.warn('chunk 結構異常，未找到 response 或 usage:', chunk);
             }
             }

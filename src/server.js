@@ -65,7 +65,8 @@ router.post('/', async (request, env, ctx) => {
       case 'generate-text': {
         // The `generate-text` command is used to generate text based on a prompt.
         // It can use different AI services and models.
-        return await generateText(args, env);
+        ctx.waitUntil(generateText(args, env, interaction));
+        return new JsonResponse({type:InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE});
       }
       default:
         return new JsonResponse({
