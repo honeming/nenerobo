@@ -27,4 +27,13 @@ export const COMMANDS = {
       {type:3, name:'model', description:'要使用的模型。', required:false},
     ],
   },
+  generateImage: {
+    name: 'generate-image',
+    description: '產生圖片',
+    options: [
+      {type:3, name:'prompt', description:'圖片描述', required:true},
+      {type:3, name:'service', description:'AI服務提供商', required:false},
+      {type:3, name:'model', description:'要使用的模型', required:false}
+    ]
+  }
 }

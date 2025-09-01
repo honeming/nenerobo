@@ -68,6 +68,9 @@ router.post('/', async (request, env, ctx) => {
         ctx.waitUntil(generateText(args, env, interaction));
         return new JsonResponse({type:InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE});
       }
+      case 'generate-image':{
+        return new JsonResponse
+      }
       default:
         return new JsonResponse({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
