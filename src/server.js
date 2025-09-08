@@ -75,6 +75,9 @@ router.post('/', async (request, env, ctx) => {
           return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"這個指令只能在貼文中使用"}});
         }
       }
+      case 'generate-image':{
+        return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"正在準備..."}});
+      }
       default:
         return new JsonResponse({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
