@@ -1,11 +1,8 @@
 export async function generateText(key, prompt, model, onResponse, onUsage){
-  const messages = [
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
   // console.log('生成文本的參數:', { prompt, model, messages });
+  if(prompt[0].content!==""){
+    prompt[0].role = "system";
+  }
   let stream;
   try {
     stream = await fetch("https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/"+model, {
@@ -15,7 +12,7 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
       },
       method: "POST",
       body: JSON.stringify({
-        "prompt": prompt,
+        "messages": prompt,
         "stream": true,
         "max_tokens": 4096,
         // "reasoning": "high"
@@ -53,7 +50,7 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
         },
         method: "POST",
         body: JSON.stringify({
-          "prompt": prompt,
+          "messages": prompt,
           "stream": true,
           "max_tokens": adjustedMax
         })
@@ -81,7 +78,6 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
         let line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
         if (!line) continue;
-
         // Remove possible SSE "data: " prefix
         if (line.startsWith('data: ')) {
           line = line.slice(6);
@@ -127,7 +123,8 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
                   console.error('onUsage 回調函數發生錯誤:', callbackErr);
                 }
               }
-            } else if (chunk?.response && typeof chunk.response === 'object') {
+            }
+            if (chunk?.response && typeof chunk.response === 'object') {
               // 有時 response 會是一個物件，裡面包含 usage
               transformContent.usage = tryAssignUsage(chunk.response) || null;
               if (onUsage && transformContent.usage) {
@@ -149,8 +146,21 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
                     console.error('onUsage 回調函數發生錯誤:', callbackErr);
                   }
                 }
+              } else {
+                // 如果 chunk 中包含 tool_calls，就不要發出警告
+                const hasToolCalls = (obj) => {
+                  if (!obj || typeof obj !== 'object') return false;
+                  if (Object.prototype.hasOwnProperty.call(obj, 'tool_calls')) return true;
+                  for (const k of Object.keys(obj)) {
+                    if (hasToolCalls(obj[k])) return true;
+                  }
+                  return false;
+                };
+
+                if (!hasToolCalls(chunk)) {
+                  console.warn('chunk 結構異常，未找到 response 或 usage:', chunk);
+                }
               }
-              else console.warn('chunk 結構異常，未找到 response 或 usage:', chunk);
             }
             }
         } catch (e) {

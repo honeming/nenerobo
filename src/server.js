@@ -11,10 +11,8 @@ import {
 import { COMMANDS } from './commands.js';
 import { timecode } from './discordtools.js';
 import { JsonResponse } from './general.js';
-import { generateText } from './aiservice/aiservice.js';
+import { generateText,generateResponse } from './aiservice/aiservice.js';
 import { InteractionResponseFlags } from 'discord-interactions';
-
-function varDebug(obj){console.log(JSON.stringify(obj,undefined,2))}
 
 const router = AutoRouter();
 
@@ -67,6 +65,15 @@ router.post('/', async (request, env, ctx) => {
         // It can use different AI services and models.
         ctx.waitUntil(generateText(args, env, interaction));
         return new JsonResponse({type:InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE});
+      }
+      case 'generate-response': {
+        // The `generate-response` command is used to generate a response.
+        if (interaction.channel.thread_metadata) {
+          ctx.waitUntil(generateResponse(args, env, interaction));
+          return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"正在準備..."}});
+        }else{
+          return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"這個指令只能在貼文中使用"}});
+        }
       }
       default:
         return new JsonResponse({

@@ -5,14 +5,20 @@ import { generateText as cloudflareGenerateText } from './cloudflare.js';
 export async function generateText(args, env, interaction) {
   // This function is a placeholder for generating text based on the prompt.
   // In a real implementation, you would call an AI service API here.
-  const prompt = args.prompt;
+  let messages;
+  if (args.prompt) {
+    messages = [{role:"user",content:""},{role: "user", content: args.prompt}];
+  } else {
+    messages = args.messages;
+  }
   const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
   const model = args.model || 'default'; // Default to a generic model if not specified
+  // console.log(model,messages); 
 
   let currentText = '';
   let usageInfo = null;
   let lastUpdateTime = Date.now();
-  const UPDATE_INTERVAL = 1000; // 每秒更新一次，避免頻繁更新 Discord 訊息
+  const UPDATE_INTERVAL = 5000; // 每五秒更新一次，避免頻繁更新 Discord 訊息
 
   // 處理新的文字內容
   const handleResponse = async (newText) => {
@@ -34,13 +40,47 @@ export async function generateText(args, env, interaction) {
 
   let response;
   if (service === 'cloudflare') {
-    response = await cloudflareGenerateText(env.CLOUDFLARE_TOKEN, prompt, model, handleResponse, handleUsage);
+    response = await cloudflareGenerateText(env.CLOUDFLARE_TOKEN, messages, model, handleResponse, handleUsage);
   }
 
   // 最終更新，確保所有內容都被發送
   await updateDiscordMessage(env, interaction, service, model, response.text, response.usage, true);
 
   return new JsonResponse({ ok: true });
+}
+
+export async function generateResponse(args, env, interaction) {
+  const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
+  const model = args.model || 'default'; // Default to a generic model if not specified
+  const response = await fetch(`https://discord.com/api/v10/channels/${interaction.channel_id}/messages`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bot ${env.DISCORD_API_TOKEN}`
+    }
+  });
+  let raw_messages = await response.json()
+  let messages = raw_messages.map(message => {
+    // Safely access embeds and content to avoid runtime errors when fields are missing
+    const embedDesc = message?.embeds?.[0]?.description ?? "";
+    const content = message?.content ?? "";
+    if (message?.author?.bot) {
+      return { role: "assistant", content: embedDesc || content };
+    } else {
+      return { role: "user", content: content || embedDesc };
+    }
+  });
+  messages.reverse();
+  if(messages.slice(-1).role=="assistant"){
+      messages.pop();// 移除最後一則訊息，因為那是機器人自己的訊息
+  }
+
+  Object.defineProperty(args, "messages", {
+          value: messages,
+          writable: false,
+        });
+  return await generateText(args, env, interaction);
+
 }
 
 // 更新 Discord 訊息的輔助函數

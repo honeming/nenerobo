@@ -27,4 +27,18 @@ export const COMMANDS = {
       {type:3, name:'model', description:'要使用的模型。', required:false},
     ],
   },
+  generateResponse: {
+    name: 'generate-response',
+    description: '生成一個回應。',
+    options: [
+      {type:3, name:'service', description:'要使用的服務', required:false,
+        choices:[
+          {name:'Cloudflare(Default)', value:'cloudflare'},
+          // {name:'Google', value:'google'},// Coming soon
+          // {name:'GitHub', value:'github'},// Coming soon
+        ]
+      },
+      {type:3, name:'model', description:'要使用的模型。', required:false},
+    ],
+  },
 }
