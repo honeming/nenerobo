@@ -1,4 +1,4 @@
-import { COMMANDS} from './commands.js';
+import { COMMANDS } from './commands.js';
 import dotenv from 'dotenv';
 import process from 'node:process';
 
@@ -10,8 +10,11 @@ import process from 'node:process';
 
 dotenv.config({ path: '.dev.vars' });
 
-const token = dotenv.config().parsed?.DISCORD_API_TOKEN || process.env.DISCORD_API_TOKEN;
-const applicationId = dotenv.config().parsed?.DISCORD_APPLICATION_ID || process.env.DISCORD_APPLICATION_ID;
+const token =
+  dotenv.config().parsed?.DISCORD_API_TOKEN || process.env.DISCORD_API_TOKEN;
+const applicationId =
+  dotenv.config().parsed?.DISCORD_APPLICATION_ID ||
+  process.env.DISCORD_APPLICATION_ID;
 
 if (!token) {
   throw new Error('The DISCORD_TOKEN environment variable is required.');
