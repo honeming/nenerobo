@@ -1,7 +1,8 @@
-import { JsonResponse } from '../general';
-import { InteractionResponseFlags } from 'discord-interactions';
-import { InteractionResponseType } from 'discord-interactions';
-import { generateText as cloudflareGenerateText } from './cloudflare.js';
+import { JsonResponse } from '../general.js';
+import {
+  generateText as cloudflareGenerateText,
+  textToImage,
+} from './cloudflare.js';
 export async function generateText(args, env, interaction) {
   // This function is a placeholder for generating text based on the prompt.
   // In a real implementation, you would call an AI service API here.
@@ -73,8 +74,6 @@ export async function generateText(args, env, interaction) {
 }
 
 export async function generateResponse(args, env, interaction) {
-  const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
-  const model = args.model || 'default'; // Default to a generic model if not specified
   const response = await fetch(
     `https://discord.com/api/v10/channels/${interaction.channel_id}/messages`,
     {
@@ -109,22 +108,57 @@ export async function generateResponse(args, env, interaction) {
 }
 
 export async function generateImage(args, env, interaction) {
-  // This function is a placeholder for generating an image based on the prompt.
-  // In a real implementation, you would call an AI service API here.
+  // Generate an image based on the prompt using AI service
   const prompt = args.prompt;
   const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
-  const model = args.model || 'default'; // Default to a generic model if not specified
+  const model = args.model || '@cf/stabilityai/stable-diffusion-xl-base-1.0'; // Default model
 
   console.log(
     `Generating image with prompt: ${prompt}, service: ${service}, model: ${model}`,
   );
 
-  // Simulate image generation delay
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  try {
+    let imageData;
+    if (service === 'cloudflare') {
+      // Call the Cloudflare AI service to generate the image
+      imageData = await textToImage(env.CLOUDFLARE_TOKEN, prompt, model);
+    } else {
+      throw new Error(`Unsupported service: ${service}`);
+    }
 
-  const imageUrl = `https://example.com/generated-image?prompt=${encodeURIComponent(prompt)}&service=${service}&model=${model}`;
+    // Convert ArrayBuffer to Uint8Array for Discord upload
+    const imageBuffer = new Uint8Array(imageData);
 
-  return new JsonResponse({ imageUrl });
+    // Upload the binary image to Discord as an attachment
+    const discordResponse = await uploadImageToDiscord(
+      env,
+      interaction,
+      imageBuffer,
+      'generated-image.png',
+      `生成的圖片：${prompt}`,
+    );
+
+    console.log('Image uploaded to Discord successfully');
+    return discordResponse;
+  } catch (error) {
+    console.error('Error generating or uploading image:', error);
+
+    // Send error message to Discord
+    await fetch(
+      `https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: `圖片生成失敗：${error.message}`,
+        }),
+      },
+    );
+
+    return new JsonResponse({ error: error.message });
+  }
 }
 
 // 更新 Discord 訊息的輔助函數
@@ -165,5 +199,48 @@ async function updateDiscordMessage(
     );
   } catch (error) {
     console.error('更新 Discord 訊息時發生錯誤:', error);
+  }
+}
+
+// 上傳圖片到 Discord 的輔助函數
+async function uploadImageToDiscord(
+  env,
+  interaction,
+  imageBuffer,
+  filename,
+  description,
+) {
+  // Create FormData for multipart upload
+  const formData = new FormData();
+
+  // Create a blob from the image buffer
+  const blob = new Blob([imageBuffer], { type: 'image/png' });
+  formData.append('files[0]', blob, filename);
+
+  // Prepare the payload for Discord
+  const payload = {
+    content: description,
+  };
+  formData.append('payload_json', JSON.stringify(payload));
+
+  try {
+    // Upload to Discord using the webhook
+    const response = await fetch(
+      `https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,
+      {
+        method: 'PATCH',
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Discord upload failed: ${response.status} ${errorText}`);
+    }
+
+    return new JsonResponse({ ok: true });
+  } catch (error) {
+    console.error('Error uploading to Discord:', error);
+    throw error;
   }
 }

@@ -192,7 +192,7 @@ export async function generateText(key, prompt, model, onResponse, onUsage) {
               }
             }
           }
-        } catch (e) {
+        } catch {
           // If this line is not a complete JSON yet (split across chunks), put it back into buffer head
           // so it will be combined with the next chunk.
           buffer = line + '\n' + buffer;
@@ -231,9 +231,9 @@ export async function generateText(key, prompt, model, onResponse, onUsage) {
 }
 
 export async function textToImage(key, prompt, model) {
-  let stream;
+  let response;
   try {
-    stream = await fetch(
+    response = await fetch(
       'https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/' +
         model,
       {
@@ -253,4 +253,13 @@ export async function textToImage(key, prompt, model) {
     console.error('AI.run 發生錯誤:', err);
     throw err;
   }
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('AI 圖片生成失敗:', response.status, errorBody);
+    throw new Error(`AI 圖片生成失敗: ${response.status} ${errorBody}`);
+  }
+
+  // Return the binary image data as ArrayBuffer
+  return await response.arrayBuffer();
 }

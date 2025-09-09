@@ -6,13 +6,16 @@ import { AutoRouter } from 'itty-router';
 import {
   InteractionResponseType,
   InteractionType,
+  InteractionResponseFlags,
   verifyKey,
 } from 'discord-interactions';
-import { COMMANDS } from './commands.js';
 import { timecode } from './discordtools.js';
 import { JsonResponse } from './general.js';
-import { generateText, generateResponse } from './aiservice/aiservice.js';
-import { InteractionResponseFlags } from 'discord-interactions';
+import {
+  generateText,
+  generateResponse,
+  generateImage,
+} from './aiservice/aiservice.js';
 
 const router = AutoRouter();
 
@@ -50,7 +53,7 @@ router.post('/', async (request, env, ctx) => {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     var args = {};
     if (interaction.data.options) {
-      interaction.data.options.forEach((i, index, array) => {
+      interaction.data.options.forEach((i) => {
         Object.defineProperty(args, i.name, {
           value: i.value,
           writable: false,
@@ -104,6 +107,8 @@ router.post('/', async (request, env, ctx) => {
         });
     }
   } else if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+    // Handle message component interactions (buttons, select menus, etc.)
+    console.log('Message component interaction received');
   }
 
   console.error('Unknown Type');

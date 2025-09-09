@@ -1,6 +1,5 @@
 import {
   InteractionResponseType,
-  InteractionType,
   InteractionResponseFlags,
 } from 'discord-interactions';
 
