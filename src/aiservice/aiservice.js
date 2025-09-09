@@ -83,6 +83,23 @@ export async function generateResponse(args, env, interaction) {
 
 }
 
+export async function generateImage(args, env, interaction) {
+  // This function is a placeholder for generating an image based on the prompt.
+  // In a real implementation, you would call an AI service API here.
+  const prompt = args.prompt;
+  const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
+  const model = args.model || 'default'; // Default to a generic model if not specified
+
+  console.log(`Generating image with prompt: ${prompt}, service: ${service}, model: ${model}`);
+
+  // Simulate image generation delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  const imageUrl = `https://example.com/generated-image?prompt=${encodeURIComponent(prompt)}&service=${service}&model=${model}`;
+
+  return new JsonResponse({ imageUrl });
+}
+
 // 更新 Discord 訊息的輔助函數
 async function updateDiscordMessage(env, interaction, service, model, text, usage, isFinal) {
   const content = usage ? `Usage: \n\`\`\`${JSON.stringify(usage, null, 2)}\n\`\`\`` : '';

@@ -196,3 +196,24 @@ export async function generateText(key, prompt, model, onResponse, onUsage){
   }
   return transformContent;
 }
+
+export async function textToImage(key, prompt, model){
+  let stream;
+  try {
+    stream = await fetch("https://gateway.ai.cloudflare.com/v1/1874968589d4e7ff695a5cce7250dfa6/nenerobo/workers-ai/"+model, {
+      headers: {
+        "Authorization": `Bearer ${key}`,
+        "content-type": "application/json"
+      },
+      method: "POST",
+      body: JSON.stringify({
+        prompt: prompt,
+        height: 2048,
+        width: 2048,
+      })
+    });
+  } catch (err) {
+    console.error('AI.run 發生錯誤:', err);
+    throw err;
+  }
+}

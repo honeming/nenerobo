@@ -76,7 +76,9 @@ router.post('/', async (request, env, ctx) => {
         }
       }
       case 'generate-image':{
-        return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"正在準備..."}});
+        // The `generate-image` command is used to generate an image based on a prompt.
+        ctx.waitUntil(generateImage(args, env, interaction));
+        return new JsonResponse({type:InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE});
       }
       default:
         return new JsonResponse({
