@@ -16,7 +16,7 @@ export async function generateText(args, env, interaction) {
     messages = args.messages;
   }
   const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
-  const model = args.model || 'default'; // Default to a generic model if not specified
+  const model = args.model || '@cf/google/gemma-3-12b-it'; // Default to Gemma 3 12B if not specified
   // console.log(model,messages);
 
   let currentText = '';
