@@ -6,13 +6,16 @@ import { AutoRouter } from 'itty-router';
 import {
   InteractionResponseType,
   InteractionType,
+  InteractionResponseFlags,
   verifyKey,
 } from 'discord-interactions';
-import { COMMANDS } from './commands.js';
 import { timecode } from './discordtools.js';
 import { JsonResponse } from './general.js';
-import { generateText,generateResponse } from './aiservice/aiservice.js';
-import { InteractionResponseFlags } from 'discord-interactions';
+import {
+  generateText,
+  generateResponse,
+  generateImage,
+} from './aiservice/aiservice.js';
 
 const router = AutoRouter();
 
@@ -20,7 +23,10 @@ const router = AutoRouter();
  * A simple :wave: hello page to verify the worker is working.
  */
 router.get('/', (request, env) => {
-  return Response.redirect(`https://discord.com/developers/applications/${env.DISCORD_APPLICATION_ID}/information`,301);
+  return Response.redirect(
+    `https://discord.com/developers/applications/${env.DISCORD_APPLICATION_ID}/information`,
+    301,
+  );
 });
 
 /**
@@ -47,12 +53,12 @@ router.post('/', async (request, env, ctx) => {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     var args = {};
     if (interaction.data.options) {
-      interaction.data.options.forEach((i, index, array) => {
+      interaction.data.options.forEach((i) => {
         Object.defineProperty(args, i.name, {
           value: i.value,
           writable: false,
         });
-      })
+      });
     }
     switch (interaction.data.name.toLowerCase()) {
       case 'timecode': {
@@ -64,35 +70,49 @@ router.post('/', async (request, env, ctx) => {
         // The `generate-text` command is used to generate text based on a prompt.
         // It can use different AI services and models.
         ctx.waitUntil(generateText(args, env, interaction));
-        return new JsonResponse({type:InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE});
+        return new JsonResponse({
+          type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        });
       }
       case 'generate-response': {
         // The `generate-response` command is used to generate a response.
         if (interaction.channel.thread_metadata) {
           ctx.waitUntil(generateResponse(args, env, interaction));
-          return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"正在準備..."}});
-        }else{
-          return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"這個指令只能在貼文中使用"}});
+          return new JsonResponse({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: { content: '正在準備...' },
+          });
+        } else {
+          return new JsonResponse({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: { content: '這個指令只能在貼文中使用' },
+          });
         }
       }
-      case 'generate-image':{
-        return new JsonResponse({type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,data:{content:"正在準備..."}});
+      case 'generate-image': {
+        // The `generate-image` command is used to generate an image based on a prompt.
+        ctx.waitUntil(generateImage(args, env, interaction));
+        return new JsonResponse({
+          type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        });
       }
       default:
         return new JsonResponse({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: '# 糟糕！出了一點問題！\n如果你看到這則訊息，表示你想使用的指令在正式發佈的版本上可能**尚未完全啟用或完全移除**。\n請**不要**再次嘗試使用這個指令，並靜待後續的更新。',
+            content:
+              '# 糟糕！出了一點問題！\n如果你看到這則訊息，表示你想使用的指令在正式發佈的版本上可能**尚未完全啟用或完全移除**。\n請**不要**再次嘗試使用這個指令，並靜待後續的更新。',
             flags: InteractionResponseFlags.EPHEMERAL,
           },
         });
     }
   } else if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
-    
+    // Handle message component interactions (buttons, select menus, etc.)
+    console.log('Message component interaction received');
   }
 
   console.error('Unknown Type');
-  console.log(JSON.stringify(interaction, undefined, 2))
+  console.log(JSON.stringify(interaction, undefined, 2));
   return new JsonResponse({ error: 'Unknown Type' }, { status: 400 });
 });
 router.all('*', () => new Response('Not Found.', { status: 404 }));
