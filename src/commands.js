@@ -82,7 +82,13 @@ export const COMMANDS = {
         description: 'AI服務提供商',
         required: false,
       },
-      { type: 3, name: 'model', description: '要使用的模型', required: false },
+      {
+        type: 3,
+        name: 'model',
+        description: '要使用的模型',
+        required: false,
+        autocomplete: true,
+      },
       {
         type: 4,
         name: 'height',

@@ -148,6 +148,32 @@ router.post('/', async (request, env, ctx) => {
       }
     }
 
+    // Handle model autocomplete for image generation commands
+    if (
+      interaction.data.name === 'generate-image' &&
+      focusedOption.name === 'model'
+    ) {
+      try {
+        const searchValue = focusedOption.value || '';
+        const choices = await getModelChoices(
+          env.CLOUDFLARE_TOKEN,
+          searchValue,
+          'Text-to-Image',
+        );
+
+        return new JsonResponse({
+          type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+          data: { choices },
+        });
+      } catch (error) {
+        console.error('Error getting image model choices:', error);
+        return new JsonResponse({
+          type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+          data: { choices: [] },
+        });
+      }
+    }
+
     // Default: return empty choices
     return new JsonResponse({
       type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,

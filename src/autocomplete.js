@@ -6,14 +6,19 @@
  * Fetch available AI models from Cloudflare API for autocomplete
  * @param {string} cloudflareToken - API token for Cloudflare
  * @param {string} search - Search query for model names
+ * @param {string} task - Task type: 'Text Generation' or 'Text-to-Image'
  * @returns {Promise<Array>} Array of model choices for Discord autocomplete
  */
-export async function getModelChoices(cloudflareToken, search = '') {
+export async function getModelChoices(
+  cloudflareToken,
+  search = '',
+  task = 'Text Generation',
+) {
   try {
     const url = new URL(
       'https://api.cloudflare.com/client/v4/accounts/1874968589d4e7ff695a5cce7250dfa6/ai/models/search',
     );
-    url.searchParams.set('task', 'Text Generation');
+    url.searchParams.set('task', task);
     if (search) {
       url.searchParams.set('search', search);
     }
@@ -56,23 +61,24 @@ export async function getModelChoices(cloudflareToken, search = '') {
 
     // If no results found, provide default models
     if (choices.length === 0) {
-      return getDefaultModelChoices(search);
+      return getDefaultModelChoices(search, task);
     }
 
     return choices;
   } catch (error) {
     console.error('Error fetching models:', error);
-    return getDefaultModelChoices(search);
+    return getDefaultModelChoices(search, task);
   }
 }
 
 /**
  * Get default model choices as fallback
  * @param {string} search - Search query
+ * @param {string} task - Task type: 'Text Generation' or 'Text-to-Image'
  * @returns {Array} Array of default model choices
  */
-function getDefaultModelChoices(search = '') {
-  const defaultModels = [
+function getDefaultModelChoices(search = '', task = 'Text Generation') {
+  const defaultTextModels = [
     {
       name: 'Meta Llama 3.1 8B Instruct',
       value: '@cf/meta/llama-3.1-8b-instruct',
@@ -100,6 +106,32 @@ function getDefaultModelChoices(search = '') {
     { name: 'Qwen 1.5 7B Chat', value: '@cf/qwen/qwen1.5-7b-chat-awq' },
     { name: 'Qwen 1.5 14B Chat', value: '@cf/qwen/qwen1.5-14b-chat-awq' },
   ];
+
+  const defaultImageModels = [
+    {
+      name: 'Stable Diffusion XL Base 1.0',
+      value: '@cf/stabilityai/stable-diffusion-xl-base-1.0',
+    },
+    {
+      name: 'Stable Diffusion XL Lightning',
+      value: '@cf/bytedance/stable-diffusion-xl-lightning',
+    },
+    {
+      name: 'Leonardo Lucid Origin 1.0',
+      value: '@cf/leonardo/lucid-origin-1.0',
+    },
+    {
+      name: 'DreamShaper 8 LCM',
+      value: '@cf/lykon/dreamshaper-8-lcm',
+    },
+    {
+      name: 'Stable Diffusion XL Turbo',
+      value: '@cf/stabilityai/sdxl-turbo',
+    },
+  ];
+
+  const defaultModels =
+    task === 'Text-to-Image' ? defaultImageModels : defaultTextModels;
 
   if (!search) {
     return defaultModels.slice(0, 25);
