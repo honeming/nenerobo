@@ -246,7 +246,7 @@ export async function textToImage(key, prompt, model, options = {}) {
           prompt: prompt,
           height: options.height || 1024,
           width: options.width || 1024,
-          num_steps: options.numSteps || 20
+          num_steps: options.numSteps || 20,
         }),
       },
     );
@@ -260,9 +260,9 @@ export async function textToImage(key, prompt, model, options = {}) {
     console.error('AI 圖片生成失敗:', response.status, errorBody);
     throw new Error(`AI 圖片生成失敗: ${response.status} ${errorBody}`);
   }
-  if(model.startsWith('@cf/leonardo/lucid-origin')) {
+  if (model.startsWith('@cf/leonardo/lucid-origin')) {
     const json = await response.json();
-    if(!json?.result?.image) {
+    if (!json?.result?.image) {
       console.error('AI 圖片生成失敗，回應格式異常:', JSON.stringify(json));
       throw new Error(`AI 圖片生成失敗，回應格式異常`);
     }
