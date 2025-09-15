@@ -29,7 +29,6 @@ export async function getModelChoices(
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       console.error(
         'Failed to fetch models:',
@@ -55,7 +54,7 @@ export async function getModelChoices(
       )
       .slice(0, 25) // Discord limits to 25 choices
       .map((model) => ({
-        name: model.description || model.name,
+        name: model.name,
         value: model.name,
       }));
 
