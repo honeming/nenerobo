@@ -16,6 +16,7 @@ import {
   generateResponse,
   generateImage,
 } from './aiservice/aiservice.js';
+import { getModelChoices } from './autocomplete.js';
 
 const router = AutoRouter();
 
@@ -106,6 +107,52 @@ router.post('/', async (request, env, ctx) => {
           },
         });
     }
+  } else if (
+    interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE
+  ) {
+    // Handle autocomplete interactions
+    const focusedOption = interaction.data.options?.find(
+      (option) => option.focused,
+    );
+
+    if (!focusedOption) {
+      return new JsonResponse({
+        type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+        data: { choices: [] },
+      });
+    }
+
+    // Handle model autocomplete for text generation commands
+    if (
+      (interaction.data.name === 'generate-text' ||
+        interaction.data.name === 'generate-response') &&
+      focusedOption.name === 'model'
+    ) {
+      try {
+        const searchValue = focusedOption.value || '';
+        const choices = await getModelChoices(
+          env.CLOUDFLARE_TOKEN,
+          searchValue,
+        );
+
+        return new JsonResponse({
+          type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+          data: { choices },
+        });
+      } catch (error) {
+        console.error('Error getting model choices:', error);
+        return new JsonResponse({
+          type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+          data: { choices: [] },
+        });
+      }
+    }
+
+    // Default: return empty choices
+    return new JsonResponse({
+      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+      data: { choices: [] },
+    });
   } else if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
     // Handle message component interactions (buttons, select menus, etc.)
     console.log('Message component interaction received');
