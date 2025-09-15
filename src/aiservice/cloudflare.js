@@ -230,7 +230,7 @@ export async function generateText(key, prompt, model, onResponse, onUsage) {
   return transformContent;
 }
 
-export async function textToImage(key, prompt, model) {
+export async function textToImage(key, prompt, model, options = {}) {
   let response;
   try {
     response = await fetch(
@@ -244,8 +244,9 @@ export async function textToImage(key, prompt, model) {
         method: 'POST',
         body: JSON.stringify({
           prompt: prompt,
-          height: 2048,
-          width: 2048,
+          height: options.height || 1024,
+          width: options.width || 1024,
+          num_steps: options.numSteps || 20
         }),
       },
     );
@@ -258,6 +259,22 @@ export async function textToImage(key, prompt, model) {
     const errorBody = await response.text();
     console.error('AI 圖片生成失敗:', response.status, errorBody);
     throw new Error(`AI 圖片生成失敗: ${response.status} ${errorBody}`);
+  }
+  if(model.startsWith('@cf/leonardo/lucid-origin')) {
+    const json = await response.json();
+    if(!json?.result?.image) {
+      console.error('AI 圖片生成失敗，回應格式異常:', JSON.stringify(json));
+      throw new Error(`AI 圖片生成失敗，回應格式異常`);
+    }
+    const base64Data = json.result.image;
+    // 將 base64 字串轉換為 ArrayBuffer
+    const binaryString = atob(base64Data);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 
   // Return the binary image data as ArrayBuffer

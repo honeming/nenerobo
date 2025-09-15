@@ -15,7 +15,7 @@
     "publish": "wrangler deploy"
   },
   "keywords": [],
-  "author": "Justin Beckwith <justin.beckwith@gmail.com>",
+  "author": "angusma",
   "license": "MIT",
   "dependencies": {
     "discord-interactions": "^4.0.0",
