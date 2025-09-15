@@ -112,16 +112,23 @@ export async function generateImage(args, env, interaction) {
   const prompt = args.prompt;
   const service = args.service || 'cloudflare'; // Default to Cloudflare if not specified
   const model = args.model || '@cf/stabilityai/stable-diffusion-xl-base-1.0'; // Default model
+  const height = args.height || 512; // Default height
+  const width = args.width || 512; // Default width
+  const numSteps = args.num_steps || 20; // Default number of steps
 
   console.log(
-    `Generating image with prompt: ${prompt}, service: ${service}, model: ${model}`,
+    `Generating image with prompt: ${prompt}, service: ${service}, model: ${model}, height: ${height}, width: ${width}, numSteps: ${numSteps}`,
   );
 
   try {
     let imageData;
     if (service === 'cloudflare') {
       // Call the Cloudflare AI service to generate the image
-      imageData = await textToImage(env.CLOUDFLARE_TOKEN, prompt, model);
+      imageData = await textToImage(env.CLOUDFLARE_TOKEN, prompt, model, {
+        height,
+        width,
+        numSteps,
+      });
     } else {
       throw new Error(`Unsupported service: ${service}`);
     }
